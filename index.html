@@ -28,17 +28,23 @@
       color: #27ae60;
       margin-bottom: 0.5rem;
     }
-    .camera-box {
+    /* Wrap the camera view in a container with fixed height */
+    .camera-container {
       position: relative;
-      background: #fff;
-      border-radius: 15px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
+      height: 60vh;
       margin-bottom: 1rem;
+      background: #000;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .camera-box {
+      width: 100%;
+      height: 100%;
     }
     #webcam, #overlay {
       width: 100%;
-      height: 60vh;
+      height: 100%;
       object-fit: cover;
       transform: scaleX(-1); /* Mirror effect by default */
       -webkit-transform: scaleX(-1);
@@ -49,6 +55,7 @@
       left: 0;
       pointer-events: none;
     }
+    /* Camera controls overlaid on camera view */
     .camera-controls {
       position: absolute;
       bottom: 20px;
@@ -71,6 +78,19 @@
     .control-btn:hover {
       background: rgba(0, 0, 0, 0.9);
     }
+    /* Position results over the bottom of the camera view */
+    #results {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.3);
+      max-height: 40%;
+      overflow-y: auto;
+    }
+    /* Performance warning stays fixed at the top */
     #performanceWarning {
       display: none;
       position: fixed;
@@ -88,7 +108,6 @@
       background: #fff;
       border-radius: 12px;
       padding: 1.5rem;
-      margin: 1rem 0;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     .data-grid {
@@ -141,11 +160,8 @@
       margin-top: 0.5rem;
     }
     @media (max-width: 600px) {
-      #webcam, #overlay {
+      .camera-container {
         height: 50vh;
-      }
-      .data-grid {
-        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -160,9 +176,13 @@
       <i class="fas fa-leaf"></i> EcoVision Pro
     </h1>
 
-    <div class="camera-box">
-      <video id="webcam" autoplay muted playsinline></video>
-      <canvas id="overlay"></canvas>
+    <!-- Camera container with fixed height -->
+    <div class="camera-container">
+      <div class="camera-box">
+        <video id="webcam" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+      </div>
+      <!-- Overlaid controls -->
       <div class="camera-controls">
         <button class="control-btn" id="scanButton">
           <i class="fas fa-search"></i>
@@ -177,9 +197,9 @@
           <i class="fas fa-lightbulb"></i>
         </button>
       </div>
+      <!-- Results overlaid on the camera view -->
+      <div id="results"></div>
     </div>
-
-    <div id="results"></div>
   </div>
 
   <script>
@@ -196,7 +216,7 @@
     let stableCount = 0;
     const STABLE_THRESHOLD = 3; // Must detect the same object 3 times consecutively
 
-    // Enhanced Environmental Science Database (you can simplify or remove details as needed)
+    // Enhanced Environmental Science Database
     const ecoScienceData = {
       plastic: {
         decomposition: {
@@ -273,12 +293,10 @@
 
     async function setupWebcam() {
       const video = document.getElementById('webcam');
-
       // Stop any existing stream
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
       }
-
       const constraints = {
         video: {
           facingMode: currentFacingMode,
@@ -287,18 +305,15 @@
           frameRate: { ideal: 30, max: 15 }
         }
       };
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         currentStream = stream;
-
         // Enable torch control if available
         const track = stream.getVideoTracks()[0];
         if (track.getCapabilities().torch) {
           document.getElementById('torchToggle').disabled = false;
         }
-
         return new Promise(resolve => {
           video.onloadedmetadata = () => {
             video.width = video.videoWidth;
@@ -317,7 +332,6 @@
     function toggleFlip() {
       const video = document.getElementById('webcam');
       const canvas = document.getElementById('overlay');
-      // Flip by toggling scaleX value between -1 and 1
       const currentTransform = video.style.transform;
       if (currentTransform.includes('-1')) {
         video.style.transform = 'scaleX(1)';
@@ -351,28 +365,24 @@
       }
     });
 
-    // Helper function to choose a color based on toxicity (or other score)
+    // Helper to choose a color based on toxicity score
     function getEcoColor(score) {
       if (score >= 8) return '#2ecc71';
       if (score >= 5) return '#f1c40f';
       return '#e74c3c';
     }
 
-    // For display purposes only (optional environmental details)
     function getMaxDecompositionYears(material) {
       const timeline = ecoScienceData[material]?.decomposition?.timeline || '1000 years';
       return parseInt(timeline.split('-').pop().replace(' years','').trim()) || 1000;
     }
 
-    // Build the science card with environmental and recycling details.
-    // You can remove or simplify sections if needed.
     function createScienceCard(obj, material) {
       const data = ecoScienceData[material] || ecoScienceData['plastic'];
       return `
         <div class="science-facts">
           <h2><i class="fas fa-microscope"></i> Analysis: ${material.toUpperCase()}</h2>
           <p>Detected: <strong>${obj.class}</strong> (${Math.round(obj.score * 100)}% confidence)</p>
-          
           <div class="decomposition-timeline">
             <div class="timeline-bar" style="width: ${Math.min(100, (getMaxDecompositionYears(material) / 1000) * 100)}%; background: ${getEcoColor(data.environmentalImpact.toxicity)}">
             </div>
@@ -380,7 +390,6 @@
           <div class="timeline-label">
             ${data.decomposition.timeline} decomposition period
           </div>
-
           <div class="data-grid">
             <div class="data-card" style="border-color: #e74c3c">
               <h4><i class="fas fa-fish"></i> Marine Impact</h4>
@@ -401,7 +410,6 @@
       `;
     }
 
-    // Draw bounding boxes and labels on the overlay canvas
     function drawDetection(ctx, obj, material) {
       const colors = {
         plastic: '#FF4757',
@@ -422,38 +430,25 @@
       ctx.fillText(text, obj.bbox[0] + 5, obj.bbox[1] - 5);
     }
 
-    // Optimized detection loop with stabilization
     async function detectObjects() {
       if (!isScanning) return;
       const startTime = performance.now();
       frameCount++;
-
-      // Process only every nth frame
       if (frameCount % PROCESS_EVERY !== 0) {
         requestAnimationFrame(detectObjects);
         return;
       }
-
       try {
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('overlay');
         const ctx = canvas.getContext('2d');
-
-        // Set canvas dimensions to match video
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Detect objects in the current frame
         const objects = await net.detect(video);
-        const resultsDiv = document.getElementById('results');
         let updatedDetection = null;
-
         objects.forEach(obj => {
-          // Use a higher threshold for updating the results
           if (obj.score < 0.75) return;
-
-          // Determine material type based on detected class
           let material = 'unknown';
           if (obj.class.includes('bottle') || obj.class.includes('cup')) {
             material = 'plastic';
@@ -462,17 +457,12 @@
           } else if (obj.class.includes('paper') || obj.class.includes('book')) {
             material = 'paper';
           }
-
-          // Draw detection on canvas
           drawDetection(ctx, obj, material);
-
-          // For stabilization, consider only the first high-confidence detection
           if (!updatedDetection) {
             updatedDetection = { obj, material };
           }
         });
-
-        // Check if the new detection is the same as the last one
+        const resultsDiv = document.getElementById('results');
         if (updatedDetection) {
           if (
             lastDetection &&
@@ -484,19 +474,14 @@
             stableCount = 1;
           }
           lastDetection = updatedDetection;
-
-          // Only update the results if detection is stable for several frames
           if (stableCount >= STABLE_THRESHOLD) {
             resultsDiv.innerHTML = createScienceCard(updatedDetection.obj, updatedDetection.material);
           }
         } else {
-          // If nothing is detected, reset stabilization
           stableCount = 0;
           lastDetection = null;
           resultsDiv.innerHTML = '';
         }
-
-        // Adaptive quality adjustment: if processing takes too long, lower quality once
         const processingTime = performance.now() - startTime;
         if (processingTime > 100 && qualityMode === 'high') {
           qualityMode = 'low';
@@ -506,11 +491,9 @@
       } catch (err) {
         console.error('Detection error:', err);
       }
-
       requestAnimationFrame(detectObjects);
     }
 
-    // Start/stop scanning on button click
     document.getElementById('scanButton').addEventListener('click', async () => {
       if (!isScanning) {
         const video = await setupWebcam();
@@ -528,11 +511,9 @@
       }
     });
 
-    // Initialize the model and webcam on load
     (async function init() {
       net = await cocoSsd.load();
       await setupWebcam();
-      // If a mobile device is detected, force lower quality for performance
       if (/Mobi|Android/i.test(navigator.userAgent)) {
         qualityMode = 'low';
         document.getElementById('performanceWarning').style.display = 'block';
